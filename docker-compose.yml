@@ -1,0 +1,69 @@
+# Docker Compose for local development.
+# Services: TimescaleDB (with pgvector), Redis, API server, ARQ worker.
+
+services:
+  # ── TimescaleDB with pgvector ──────────────────────────────────
+  postgres:
+    image: timescale/timescaledb-ha:pg16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ward
+      POSTGRES_PASSWORD: ward_dev
+      POSTGRES_DB: ward
+    volumes:
+      - pgdata:/home/postgres/pgdata/data
+      - ./scripts/migrations/001_tiger_init.sql:/docker-entrypoint-initdb.d/001_tiger_init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ward"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis ──────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── WARD API Server ────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      TIGER_DATABASE_URL: postgres://ward:ward_dev@postgres:5432/ward
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: uvicorn backend.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # ── WARD ARQ Worker ────────────────────────────────────────────
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      TIGER_DATABASE_URL: postgres://ward:ward_dev@postgres:5432/ward
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: arq backend.job_queue.arq_worker.WorkerSettings
+
+volumes:
+  pgdata:
