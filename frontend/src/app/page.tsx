@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   ShieldAlert,
   Sparkles,
@@ -22,6 +22,9 @@ import {
   ChevronRight,
   Database,
   Terminal,
+  Search,
+  Download,
+  Filter,
 } from 'lucide-react';
 
 interface Finding {
@@ -221,19 +224,34 @@ export default function WardDashboard() {
   const [reviews, setReviews] = useState<Review[]>(INITIAL_REVIEWS);
   const [selectedReview, setSelectedReview] = useState<Review>(INITIAL_REVIEWS[0]);
 
+  // Search & Filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [outcomeFilter, setOutcomeFilter] = useState<string>('all');
+
   // Trigger form state
   const [customRepo, setCustomRepo] = useState('acme/auth-service');
   const [customPr, setCustomPr] = useState(104);
   const [customDiff, setCustomDiff] = useState(PRESET_DIFFS[0].diff);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  // HITL decision toast state
+  // Toast state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
+
+  const filteredReviews = useMemo(() => {
+    return reviews.filter((r) => {
+      const matchesSearch =
+        r.repo.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.pr_number.toString().includes(searchQuery) ||
+        r.head_sha.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesOutcome = outcomeFilter === 'all' || r.outcome === outcomeFilter;
+      return matchesSearch && matchesOutcome;
+    });
+  }, [reviews, searchQuery, outcomeFilter]);
 
   const handleRunAnalysis = async () => {
     setIsAnalyzing(true);
@@ -260,7 +278,7 @@ export default function WardDashboard() {
         setActiveTab('reviews');
         showToast(`Review completed for PR #${customPr}!`);
       } else {
-        // Mock fallback simulation if backend is not actively running
+        // Fallback simulation
         setTimeout(() => {
           const isInjection = customDiff.toLowerCase().includes('sql') || customDiff.toLowerCase().includes('select');
           const mockFindings: Finding[] = isInjection
@@ -321,7 +339,6 @@ export default function WardDashboard() {
         }, 1200);
       }
     } catch {
-      // Offline simulation
       const simulatedReview: Review = {
         review_id: 'rev-' + Math.floor(Math.random() * 1000),
         repo: customRepo,
@@ -377,6 +394,42 @@ export default function WardDashboard() {
       )
     );
     showToast(`HITL Decision: Review ${decision.toUpperCase()} and dispatched to GitHub!`);
+  };
+
+  const exportReport = (format: 'json' | 'md') => {
+    let content = '';
+    let filename = `ward-review-${selectedReview.repo.replace('/', '_')}-pr${selectedReview.pr_number}`;
+
+    if (format === 'json') {
+      content = JSON.stringify(selectedReview, null, 2);
+      filename += '.json';
+    } else {
+      content = `# WARD Review Report: ${selectedReview.repo} PR #${selectedReview.pr_number}\n\n` +
+        `**Status**: ${selectedReview.outcome.toUpperCase()}\n` +
+        `**Confidence**: ${Math.round(selectedReview.overall_confidence * 100)}%\n` +
+        `**Commit SHA**: ${selectedReview.head_sha}\n\n` +
+        `## Findings (${selectedReview.findings.length})\n\n` +
+        selectedReview.findings
+          .map(
+            (f) =>
+              `### [${f.severity.toUpperCase()}] ${f.title} (${f.agent_type})\n` +
+              `*Location: ${f.file_path}:${f.line_start || 1}*\n\n` +
+              `${f.description}\n\n` +
+              (f.rationale ? `> **Threat Rationale**: ${f.rationale}\n\n` : '') +
+              (f.suggestion ? `\`\`\`suggestion\n${f.suggestion}\n\`\`\`\n` : '')
+          )
+          .join('\n---\n\n');
+      filename += '.md';
+    }
+
+    const blob = new Blob([content], { type: format === 'json' ? 'application/json' : 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`Exported review report as ${format.toUpperCase()}!`);
   };
 
   const hitlReviews = reviews.filter((r) => r.hitl_required);
@@ -564,13 +617,49 @@ export default function WardDashboard() {
 
       {/* TAB 1: REVIEWS & INSPECTOR */}
       {activeTab === 'reviews' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: '20px' }}>
-          {/* Reviews List */}
+        <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: '20px' }}>
+          {/* Reviews List Column */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <h2 style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-              Recent PR Runs
-            </h2>
-            {reviews.map((rev) => (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{ position: 'relative', flex: 1 }}>
+                <Search size={14} color="var(--text-muted)" style={{ position: 'absolute', left: '10px', top: '10px' }} />
+                <input
+                  type="text"
+                  placeholder="Filter repo, PR #, SHA..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    width: '100%',
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px',
+                    padding: '8px 10px 8px 30px',
+                    color: '#ffffff',
+                    fontSize: '12px',
+                  }}
+                />
+              </div>
+
+              <select
+                value={outcomeFilter}
+                onChange={(e) => setOutcomeFilter(e.target.value)}
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '8px',
+                  padding: '8px 10px',
+                  color: 'var(--text-secondary)',
+                  fontSize: '12px',
+                }}
+              >
+                <option value="all">All</option>
+                <option value="approved">Approved</option>
+                <option value="request_changes">Changes</option>
+                <option value="critical_block">Blocked</option>
+              </select>
+            </div>
+
+            {filteredReviews.map((rev) => (
               <div
                 key={rev.review_id}
                 onClick={() => setSelectedReview(rev)}
@@ -620,7 +709,7 @@ export default function WardDashboard() {
             ))}
           </div>
 
-          {/* Selected Review Inspector */}
+          {/* Selected Review Inspector Column */}
           <div className="glass-panel" style={{ padding: '24px' }}>
             <div
               style={{
@@ -645,6 +734,12 @@ export default function WardDashboard() {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <button onClick={() => exportReport('md')} className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '12px' }}>
+                  <Download size={14} /> MD
+                </button>
+                <button onClick={() => exportReport('json')} className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '12px' }}>
+                  <Download size={14} /> JSON
+                </button>
                 {selectedReview.hitl_required ? (
                   <span className="badge badge-critical">HITL Gate Triggered</span>
                 ) : (
