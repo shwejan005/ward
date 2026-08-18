@@ -15,6 +15,8 @@ from backend.api.hitl import router as hitl_router
 from backend.api.reviews import router as reviews_router
 from backend.webhook_receiver.router import router as webhook_router
 
+from backend.security.rate_limiter import RateLimitMiddleware
+
 logger = structlog.get_logger(__name__)
 
 
@@ -32,6 +34,9 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+# Attach Rate Limiting and Payload Protection Middleware
+app.add_middleware(RateLimitMiddleware, max_requests_per_minute=300)
 
 # Enable CORS for frontend dashboard
 app.add_middleware(
