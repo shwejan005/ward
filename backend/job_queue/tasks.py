@@ -8,25 +8,10 @@ from __future__ import annotations
 
 import structlog
 from arq import create_pool
-from arq.connections import RedisSettings
 
-from backend.settings import settings
+from backend.job_queue import get_redis_settings
 
 logger = structlog.get_logger(__name__)
-
-
-def _redis_settings() -> RedisSettings:
-    """Parse the Redis URL into ARQ RedisSettings."""
-    # arq uses its own RedisSettings, not a URL string
-    from urllib.parse import urlparse
-
-    parsed = urlparse(settings.redis_url)
-    return RedisSettings(
-        host=parsed.hostname or "localhost",
-        port=parsed.port or 6379,
-        database=int(parsed.path.lstrip("/") or "0"),
-        password=parsed.password,
-    )
 
 
 async def enqueue_review(
@@ -39,7 +24,7 @@ async def enqueue_review(
 
     Called by the webhook ingress after validation + idempotency check.
     """
-    pool = await create_pool(_redis_settings())
+    pool = await create_pool(get_redis_settings())
     try:
         job = await pool.enqueue_job(
             "review_pull_request",

@@ -17,7 +17,7 @@ else:
     from enum import Enum
 
     class StrEnum(str, Enum):
-        pass
+        """Backport of StrEnum for Python < 3.11."""
 from typing import Any
 
 import structlog

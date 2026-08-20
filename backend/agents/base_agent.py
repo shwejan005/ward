@@ -6,7 +6,6 @@ BaseSpecialist and override only the prompt template and agent_type.
 
 from __future__ import annotations
 
-import json
 import time
 from abc import ABC, abstractmethod
 

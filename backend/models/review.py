@@ -7,14 +7,14 @@ from datetime import datetime, timezone
 
 from pydantic import BaseModel, Field
 
-from backend.models.enums import ReviewOutcome, ReviewStatus
+from backend.models.enums import AgentType, ReviewOutcome, ReviewStatus, Severity
 from backend.models.findings import Finding
 
 
 class ReviewResult(BaseModel):
     """Output from a single specialist agent."""
 
-    agent_type: str
+    agent_type: AgentType
     findings: list[Finding] = Field(default_factory=list)
     cost_usd: float = 0.0
     tokens_used: int = 0
@@ -64,7 +64,7 @@ class AggregatedReview(BaseModel):
     def has_critical_findings(self) -> bool:
         """Check if any non-duplicate finding is CRITICAL severity."""
         return any(
-            f.severity == "critical" and not f.is_duplicate
+            f.severity == Severity.CRITICAL and not f.is_duplicate
             for f in self.findings
         )
 
@@ -74,9 +74,9 @@ class AggregatedReview(BaseModel):
         return [f for f in self.findings if not f.is_duplicate]
 
     @property
-    def findings_by_agent(self) -> dict[str, list[Finding]]:
+    def findings_by_agent(self) -> dict[AgentType, list[Finding]]:
         """Group active findings by agent_type."""
-        result: dict[str, list[Finding]] = {}
+        result: dict[AgentType, list[Finding]] = {}
         for f in self.active_findings:
             result.setdefault(f.agent_type, []).append(f)
         return result

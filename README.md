@@ -35,7 +35,7 @@ One Postgres-compatible database, three internal lanes:
 
 ### Key Technologies
 
-- **Backend**: Python 3.11+, FastAPI, Pydantic v2
+- **Backend**: Python 3.10+, FastAPI, Pydantic v2
 - **Orchestration**: LangGraph StateGraph with parallel Send API
 - **Queue**: Redis + ARQ
 - **Database**: Tiger Cloud (TimescaleDB + pgvector + pgvectorscale)

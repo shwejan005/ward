@@ -17,7 +17,7 @@ from backend.agents.quality_agent import QualityAgent
 from backend.agents.security_agent import SecurityAgent
 from backend.agents.test_agent import TestAgent
 from backend.core.workflow_engine import WorkflowEngine
-from backend.models.enums import AgentType, EventType, ReviewOutcome, ReviewStatus
+from backend.models.enums import AgentType, EventType, ReviewOutcome, ReviewStatus, Severity
 from backend.models.findings import Finding
 from backend.models.review import AggregatedReview, ReviewResult
 from backend.observability.events import emit_agent_event
@@ -117,10 +117,10 @@ class LangGraphEngine:
         )
 
         # 6. Determine outcome
-        has_critical = any(f.severity == "critical" and not f.is_duplicate for f in deduped)
+        has_critical = any(f.severity == Severity.CRITICAL and not f.is_duplicate for f in deduped)
         if has_critical:
             outcome = ReviewOutcome.CRITICAL_BLOCK
-        elif any(f.severity in ("critical", "high") and not f.is_duplicate for f in deduped):
+        elif any(f.severity in (Severity.CRITICAL, Severity.HIGH) and not f.is_duplicate for f in deduped):
             outcome = ReviewOutcome.REQUEST_CHANGES
         else:
             outcome = ReviewOutcome.APPROVED

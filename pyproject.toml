@@ -61,12 +61,7 @@ dev = [
     "httpx>=0.28.0",
 ]
 
-[tool.ruff]
-target-version = "py311"
-line-length = 100
-
-[tool.ruff.lint]
-select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "TCH"]
+# Ruff configuration lives in ruff.toml (single source of truth)
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -74,7 +69,7 @@ asyncio_mode = "auto"
 filterwarnings = ["ignore::DeprecationWarning"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.10"
 strict = true
 warn_return_any = true
 warn_unused_configs = true

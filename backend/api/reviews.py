@@ -13,7 +13,7 @@ from backend.api.schemas import (
     ReviewSummaryResponse,
     TriggerReviewRequest,
 )
-from backend.models.enums import ReviewStatus
+from backend.models.enums import ReviewStatus, Severity
 from backend.models.review import AggregatedReview
 from backend.orchestrator.langgraph_engine import LangGraphEngine
 
@@ -79,7 +79,7 @@ async def get_review(review_id: str) -> ReviewDetailResponse:
 
 def _to_summary_response(r: AggregatedReview) -> ReviewSummaryResponse:
     active = r.active_findings
-    criticals = sum(1 for f in active if f.severity == "critical")
+    criticals = sum(1 for f in active if f.severity == Severity.CRITICAL)
     return ReviewSummaryResponse(
         review_id=r.review_id,
         repo=r.repo,
