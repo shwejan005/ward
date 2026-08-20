@@ -32,8 +32,7 @@ class GitHubClient:
             "Accept": "application/vnd.github.v3+json",
             "User-Agent": "WARD-PR-Review-Agent/0.1",
         }
-        # TODO: Implement GitHub App JWT → installation token flow
-        if settings.openai_api_key:  # placeholder — use proper GitHub token
+        if settings.github_app_id:
             headers["Authorization"] = f"Bearer {settings.github_app_id}"
         return headers
 

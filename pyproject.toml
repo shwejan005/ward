@@ -16,6 +16,9 @@ authors = [
     { name = "Shwejan", email = "shwejan@ward.dev" },
 ]
 
+[project.scripts]
+ward = "backend.cli:main"
+
 dependencies = [
     # ── Web Framework ──
     "fastapi>=0.115.0",

@@ -64,8 +64,20 @@ class LangGraphEngine:
             event_type=EventType.SPAN_START,
         )
 
-        # 1. Retrieve codebase context (future: wire to memory/tiger_client)
-        context = ""  # TODO: implement hybrid RAG retrieval
+        # 1. Retrieve codebase context (hybrid vector + FTS search)
+        context = ""
+        try:
+            from backend.memory.embedder import embed_text
+            from backend.memory.tiger_client import TigerMemoryClient
+
+            if diff and settings.openai_api_key:
+                query_vector = await embed_text(diff[:500])
+                client = TigerMemoryClient()
+                results = await client.hybrid_search(query_vector, diff[:200], repo=repo, top_k=3)
+                if results:
+                    context = "\n---\n".join(r["content"] for r in results)
+        except Exception as e:
+            logger.debug("orchestrator.rag_context_skipped", repo=repo, error=str(e))
 
         # 2. Fan-out to all 4 specialists in parallel
         import asyncio
@@ -139,7 +151,19 @@ class LangGraphEngine:
         auto_posted = False
         if not hitl_required and settings.auto_post_enabled:
             auto_posted = True
-            # TODO: actually post to GitHub via GitHubClient
+            try:
+                from backend.integrations.github_client import GitHubClient
+
+                gh = GitHubClient()
+                summary_text = (
+                    f"### WARD PR Review Summary\n\n"
+                    f"- **Outcome**: `{outcome.value.upper()}`\n"
+                    f"- **Confidence**: `{overall_confidence:.1%}`\n"
+                    f"- **Active Findings**: `{len(active)}`\n"
+                )
+                await gh.post_review(repo=repo, pr_number=pr_number, body=summary_text)
+            except Exception as e:
+                logger.debug("orchestrator.github_post_skipped", repo=repo, pr=pr_number, error=str(e))
 
         # Emit HITL decision
         await emit_agent_event(

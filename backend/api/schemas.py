@@ -8,20 +8,19 @@ from pydantic import BaseModel, Field
 
 from backend.models.enums import (
     AgentType,
+    FeedbackType,
     FindingCategory,
     ReviewOutcome,
     ReviewStatus,
     Severity,
-    HITLStatus,
-    FeedbackType,
 )
 
 
 class TriggerReviewRequest(BaseModel):
     """Payload to trigger a PR review manually."""
 
-    repo: str = Field(..., example="facebook/react")
-    pr_number: int = Field(..., example=101)
+    repo: str = Field(..., json_schema_extra={"example": "facebook/react"})
+    pr_number: int = Field(..., json_schema_extra={"example": 101})
     head_sha: str = Field(default="head-sha-latest")
     diff: str = Field(..., description="The unified diff to analyze")
 

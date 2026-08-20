@@ -45,24 +45,29 @@ One Postgres-compatible database, three internal lanes:
 ## Quick Start
 
 ```bash
-# 1. Copy environment template
+# 1. Setup environment & dependencies
 cp .env.example .env
-# Fill in TIGER_DATABASE_URL, OPENAI_API_KEY, GITHUB_* credentials
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
 
-# 2. Start infrastructure
+# 2. Start infrastructure (TimescaleDB + Redis)
 docker compose up -d
 
-# 3. Run database migrations
+# 3. Run database migrations (Tiger Cloud schema)
 psql $TIGER_DATABASE_URL -f scripts/migrations/001_tiger_init.sql
 
 # 4. Start the API server
-cd backend && uvicorn api.main:app --reload --port 8000
+uvicorn backend.api.main:app --reload --port 8000
 
 # 5. Start the ARQ worker
-cd backend && python -m job_queue.arq_worker
+python -m backend.job_queue.arq_worker
 
-# 6. Start the frontend
-cd frontend && npm run dev
+# 6. Start the frontend dashboard
+cd frontend && npm install && npm run dev
+
+# 7. Run CLI or unit test suite
+ward status
+pytest tests/unit/
 ```
 
 ## Project Structure
